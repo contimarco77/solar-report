@@ -118,7 +118,7 @@ report:
 
 llm:
   provider: "anthropic"
-  model: "claude-sonnet-4-6"
+  model: "claude-sonnet-5"
   api_key: "${ANTHROPIC_API_KEY}"
   max_tokens: 1500
 ```

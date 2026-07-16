@@ -1,0 +1,11 @@
+system:
+  name: "Test PV"
+  installed_kwp: 6.0
+
+source:
+  kind: "csv"
+  csv:
+    path: "./data/production.csv"
+
+llm:
+  api_key: "${ANTHROPIC_API_KEY}"
