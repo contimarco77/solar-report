@@ -159,3 +159,18 @@ class TestSummarizePeriod:
     def test_rejects_naive_reference(self) -> None:
         with pytest.raises(ValueError, match="timezone-aware"):
             summarize_period([], "week", datetime(2026, 7, 17, 12, 0))
+
+    def test_multiple_points_same_day_are_summed(self) -> None:
+        """Verify aggregate_daily sums incremental values within a day."""
+        points = [
+            ProductionData(
+                timestamp=datetime(2026, 7, 14, 10, 0, tzinfo=UTC),
+                production_wh=1000.0,
+            ),
+            ProductionData(
+                timestamp=datetime(2026, 7, 14, 14, 0, tzinfo=UTC),
+                production_wh=2000.0,
+            ),
+        ]
+        result = aggregate_daily(points)
+        assert result == [(date(2026, 7, 14), 3.0)]  # 3.0 kWh, not 2.0 or 1.5
