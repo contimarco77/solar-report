@@ -11,6 +11,14 @@ least these two columns (extra columns are ignored):
 Naive timestamps (without offset) are rejected: DST transitions and exports
 from systems in different timezones would otherwise be ambiguous.
 
+> **Incremental, not cumulative.** The `production_wh` column contains the
+> incremental energy for the interval ending at `timestamp`, not a cumulative
+> meter reading. Daily totals are computed by *summing* rows, so a cumulative
+> counter (e.g. a meter reading that grows during the day, as in Solar-Log
+> daily exports or Home Assistant `total_increasing` sensors) would inflate
+> the totals by the number of readings. Convert cumulative readings to
+> per-interval differences before importing.
+
 ## Example
 
 ```csv

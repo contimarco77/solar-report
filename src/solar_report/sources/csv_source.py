@@ -18,9 +18,10 @@ class CsvDataSource:
     """Reads production data from a CSV file.
 
     The file must have a header row with at least the columns ``timestamp``
-    (ISO 8601 with timezone offset) and ``production_wh`` (non-negative float).
-    ``separator`` and ``decimal`` are configurable to support European exports
-    (e.g. ``separator=";"`` with ``decimal=","``).
+    (ISO 8601 with timezone offset) and ``production_wh`` (non-negative float,
+    incremental energy per interval — not a cumulative meter reading; see
+    docs/csv-format.md). ``separator`` and ``decimal`` are configurable to
+    support European exports (e.g. ``separator=";"`` with ``decimal=","``).
     """
 
     def __init__(self, path: str | Path, separator: str = ",", decimal: str = ".") -> None:

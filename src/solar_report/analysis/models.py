@@ -12,10 +12,19 @@ class _StrictModel(BaseModel):
 
 
 class ProductionData(_StrictModel):
-    """A single production time-series point."""
+    """A single production time-series point.
+
+    ``production_wh`` is the incremental energy produced during the measurement
+    interval leading up to ``timestamp``, in watt-hours — NOT a cumulative meter
+    reading. Aggregations sum these values, so cumulative readings (e.g. Home
+    Assistant ``total_increasing`` sensors, Solar-Log daily counters) must be
+    converted to incremental values by the data source before instantiating
+    ``ProductionData``.
+    """
 
     timestamp: AwareDatetime
     production_wh: float = Field(ge=0)
+    """Incremental energy (Wh) for the interval ending at ``timestamp``."""
     panel_breakdown: dict[str, float] | None = None
     """Optional per-panel production in Wh, keyed by panel identifier."""
 
