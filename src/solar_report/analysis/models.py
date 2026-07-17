@@ -45,8 +45,10 @@ class PeriodSummary(_StrictModel):
     end_date: date
     total_kwh: float = Field(ge=0)
     daily_values: list[tuple[date, float]]
-    best_day: date
-    worst_day: date
+    best_day: date | None
+    """Date with the highest production, or None when the period has no data."""
+    worst_day: date | None
+    """Date with the lowest production, or None when the period has no data."""
     baseline_kwh_avg: float | None = Field(default=None, ge=0)
     """Rolling-baseline daily average (kWh) for deviation comparisons."""
 
