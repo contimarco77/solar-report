@@ -60,6 +60,8 @@ class PeriodSummary(_StrictModel):
     """Date with the lowest production, or None when the period has no data."""
     baseline_kwh_avg: float | None = Field(default=None, ge=0)
     """Rolling-baseline daily average (kWh) for deviation comparisons."""
+    anomalies: list[str] = Field(default_factory=list)
+    """Human-readable anomaly observations for the period."""
 
     @field_validator("daily_values")
     @classmethod
