@@ -32,14 +32,15 @@ SUMMARY = PeriodSummary(
 FAKE_REPORT = "## Overview\nA solid week for the system.\n"
 
 
-async def test_generate_returns_llm_output() -> None:
+async def test_generate_wraps_llm_output_in_template() -> None:
     client = AsyncMock(spec=AnthropicClient)
     client.generate.return_value = FAKE_REPORT
     generator = ReportGenerator(client)
 
     result = await generator.generate(SYSTEM, SUMMARY, period_label="week")
 
-    assert result == FAKE_REPORT
+    assert result.startswith("# Solar Report — My rooftop PV")
+    assert FAKE_REPORT.strip() in result
 
 
 async def test_generate_calls_client_with_expected_prompts() -> None:

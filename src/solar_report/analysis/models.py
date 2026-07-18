@@ -62,6 +62,11 @@ class PeriodSummary(_StrictModel):
     """4-week rolling daily average used as reference for anomaly detection."""
     anomalies: list[str] = Field(default_factory=list)
     """Human-readable anomaly observations for the period."""
+    baseline_warning: str | None = Field(
+        default=None,
+        description="Set when the baseline is computed on limited historical data; "
+        "surfaced in the report to be transparent about its accuracy.",
+    )
 
     @field_validator("daily_values")
     @classmethod

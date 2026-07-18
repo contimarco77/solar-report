@@ -13,6 +13,10 @@ from solar_report.analysis.aggregations import Period, summarize_period
 from solar_report.analysis.anomalies import compute_baseline, detect_anomalies
 from solar_report.analysis.models import PeriodSummary, ProductionData
 
+MIN_BASELINE_DAYS = 14
+"""Minimum distinct historical days ("at least two weeks of daily data")
+before the baseline is considered reliable enough to go unannotated."""
+
 
 def build_summary(
     points: list[ProductionData],
@@ -33,6 +37,19 @@ def build_summary(
     baseline_reference = datetime.combine(summary.start_date, time.min, tzinfo=reference.tzinfo)
     baseline_daily_kwh = compute_baseline(historical_points, reference=baseline_reference)
     anomalies = detect_anomalies(summary, baseline_daily_kwh)
+    n_days = len(
+        {point.timestamp.astimezone(reference.tzinfo).date() for point in historical_points}
+    )
+    baseline_warning = None
+    if n_days < MIN_BASELINE_DAYS:
+        baseline_warning = (
+            f"Baseline computed on only {n_days} days of historical data. "
+            f"Accuracy will improve as more history accumulates."
+        )
     return summary.model_copy(
-        update={"baseline_daily_kwh": baseline_daily_kwh, "anomalies": anomalies}
+        update={
+            "baseline_daily_kwh": baseline_daily_kwh,
+            "anomalies": anomalies,
+            "baseline_warning": baseline_warning,
+        }
     )

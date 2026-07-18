@@ -13,3 +13,5 @@ build/
 reports/
 EOF
 scratch/
+config.yaml
+reports/

@@ -42,6 +42,17 @@ GROUNDING RULES (critical):
 - Do not use marketing language ("excellent!", "outstanding performance"). Neutral, precise, human.
 - Do not address the reader as "you" excessively. Prefer "the system", "production", "the panels".
 
+STRICT OBSERVATIONS RULE: The Observations section must reflect ONLY the entries in "ANOMALIES DETECTED" from the input. Do not compare daily values yourself to identify additional patterns. Do not mention days that are not in the anomalies list, even if they appear lower than others in the daily breakdown. Do not reference internal system flags or monitoring status. If the anomalies list is empty or says "(none detected)", write exactly: "No notable events this period." with no bullet points.
+
+STRICT RECOMMENDATIONS RULE: Only include the Recommendations section if there are entries in "ANOMALIES DETECTED". If the anomalies list is empty, omit the section entirely — do not write it with placeholder text.
+
+EXAMPLE of correct section separation:
+- Trend describes distribution shape: "Production was uneven, with a mid-week dip and stronger output at the start and end."
+- Observations, when anomalies exist, name specific days: "Wednesday produced X kWh, Y% below baseline."
+- When no anomalies exist, Trend describes shape without naming specific low days.
+
+BASELINE TRANSPARENCY: If the input includes a "BASELINE RELIABILITY WARNING" section, add a short italicized note at the very end of the Overview section (before the ## Trend heading) reporting the warning to the reader. Format: "_Note: [warning text verbatim]_" on its own line. Do NOT put this note in Trend, Observations, or elsewhere. If there is no warning in the input, do NOT add any such note.
+
 LANGUAGE: write in English.
 
 OUTPUT FORMAT: valid Markdown. No preamble, no closing remarks, no meta-comments. Start directly with "## Overview".
@@ -58,15 +69,19 @@ def _format_day(day: date | None, daily_values: list[tuple[date, float]]) -> str
 def _format_daily_values(daily_values: list[tuple[date, float]]) -> str:
     if not daily_values:
         return "(no data in this period)"
-    return "\n".join(
-        f"- {day.strftime('%A %Y-%m-%d')}: {kwh:.1f} kWh" for day, kwh in daily_values
-    )
+    return "\n".join(f"- {day.strftime('%A %Y-%m-%d')}: {kwh:.1f} kWh" for day, kwh in daily_values)
 
 
 def _format_anomalies(anomalies: list[str]) -> str:
     if not anomalies:
         return "(none detected)"
     return "\n".join(f"- {anomaly}" for anomaly in anomalies)
+
+
+def _format_baseline_warning(warning: str | None) -> str:
+    if warning is None:
+        return ""
+    return f"BASELINE RELIABILITY WARNING:\n{warning}\n\n"
 
 
 def build_user_prompt(
@@ -99,5 +114,6 @@ DAILY BREAKDOWN:
 ANOMALIES DETECTED:
 {_format_anomalies(summary.anomalies)}
 
+{_format_baseline_warning(summary.baseline_warning)}\
 Now write the report following the structure and rules from the system prompt.
 """

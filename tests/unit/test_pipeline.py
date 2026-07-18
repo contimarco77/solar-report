@@ -60,6 +60,27 @@ def test_no_anomaly_when_production_matches_baseline() -> None:
     assert summary.total_kwh == 140.0
 
 
+def test_baseline_warning_set_with_limited_history() -> None:
+    points = _steady_days(PERIOD_START, days=7, kwh=20.0)
+    history = _steady_days(PERIOD_START - timedelta(days=5), days=5, kwh=20.0)
+
+    summary = build_summary(points, history, period="week", reference=REFERENCE)
+
+    assert summary.baseline_warning == (
+        "Baseline computed on only 5 days of historical data. "
+        "Accuracy will improve as more history accumulates."
+    )
+
+
+def test_no_baseline_warning_with_ample_history() -> None:
+    points = _steady_days(PERIOD_START, days=7, kwh=20.0)
+    history = _steady_days(PERIOD_START - timedelta(days=30), days=30, kwh=20.0)
+
+    summary = build_summary(points, history, period="week", reference=REFERENCE)
+
+    assert summary.baseline_warning is None
+
+
 def test_baseline_window_excludes_the_reporting_period() -> None:
     # History contains 28 good days before the period plus a huge day inside
     # the period: the latter must not inflate the baseline.

@@ -1,0 +1,33 @@
+system:
+  name: "My rooftop PV"
+  location: "Turin, Italy"
+  installed_kwp: 6.0
+  panels: 15
+  tilt_deg: 30
+  azimuth_deg: 180
+
+source:
+  kind: "csv"                # home_assistant | csv
+  csv:
+    path: "./sample-data/example-week.csv"
+  # Home Assistant support is coming in v0.1; uncomment once available.
+  # Env var references like ${HA_TOKEN} must be set when the section is active.
+  # home_assistant:
+  #   url: "http://homeassistant.local:8123"
+  #   token: "${HA_TOKEN}"
+  #   entity_id: "sensor.solar_production_total"
+
+report:
+  period: "week"             # week | month
+  tone: "friendly"           # friendly | technical | brief
+  language: "en"
+  output_format: "markdown"  # markdown | html
+  # {period} and {date} are expanded at generation time; the extension
+  # (.md or .html) is appended based on output_format.
+  output_path: "./reports/{period}-{date}"
+
+llm:
+  provider: "anthropic"
+  model: "claude-sonnet-5"
+  api_key: "${ANTHROPIC_API_KEY}"
+  max_tokens: 1500

@@ -101,18 +101,26 @@ class TestDetectAnomalies:
             "Wednesday (2026-07-15) produced 8.2 kWh, 41.8% below the 4-week average of 14.1 kWh"
         ]
 
-    def test_day_above_threshold_flagged(self) -> None:
-        summary = _summary([(date(2026, 7, 15), 18.0)])
-        observations = detect_anomalies(summary, baseline_daily_kwh=14.1)
-        assert len(observations) == 1
-        assert "27.7% above the 4-week average of 14.1 kWh" in observations[0]
-
     def test_day_within_threshold_not_flagged(self) -> None:
         summary = _summary([(date(2026, 7, 15), 13.0)])  # ~8% below baseline
         assert detect_anomalies(summary, baseline_daily_kwh=14.1) == []
 
+    def test_day_20_pct_below_baseline_not_flagged(self) -> None:
+        summary = _summary([(date(2026, 7, 15), 8.0)])  # 20% below 10.0
+        assert detect_anomalies(summary, baseline_daily_kwh=10.0) == []
+
+    def test_day_30_pct_below_baseline_flagged(self) -> None:
+        summary = _summary([(date(2026, 7, 15), 7.0)])  # 30% below 10.0
+        observations = detect_anomalies(summary, baseline_daily_kwh=10.0)
+        assert len(observations) == 1
+        assert "30.0% below the 4-week average of 10.0 kWh" in observations[0]
+
+    def test_day_above_baseline_never_flagged(self) -> None:
+        summary = _summary([(date(2026, 7, 15), 14.0)])  # 40% above 10.0
+        assert detect_anomalies(summary, baseline_daily_kwh=10.0) == []
+
     def test_deviation_exactly_at_threshold_not_flagged(self) -> None:
-        summary = _summary([(date(2026, 7, 15), 8.5)])  # exactly 15% below 10.0
+        summary = _summary([(date(2026, 7, 15), 7.5)])  # exactly 25% below 10.0
         assert detect_anomalies(summary, baseline_daily_kwh=10.0) == []
 
     def test_best_and_worst_day_within_threshold_not_flagged(self) -> None:

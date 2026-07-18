@@ -35,6 +35,34 @@ def test_system_prompt_starts_and_ends_as_expected() -> None:
     assert SYSTEM_PROMPT.rstrip().endswith('Start directly with "## Overview".')
 
 
+def test_system_prompt_contains_strict_grounding_rules() -> None:
+    assert (
+        "STRICT OBSERVATIONS RULE: The Observations section must reflect ONLY the entries in "
+        '"ANOMALIES DETECTED" from the input.'
+    ) in SYSTEM_PROMPT
+    assert "Do not reference internal system flags or monitoring status." in SYSTEM_PROMPT
+    assert (
+        'write exactly: "No notable events this period." with no bullet points.'
+    ) in SYSTEM_PROMPT
+    assert (
+        "STRICT RECOMMENDATIONS RULE: Only include the Recommendations section if there are "
+        'entries in "ANOMALIES DETECTED".'
+    ) in SYSTEM_PROMPT
+    assert "EXAMPLE of correct section separation:" in SYSTEM_PROMPT
+    assert (
+        'BASELINE TRANSPARENCY: If the input includes a "BASELINE RELIABILITY WARNING" section'
+    ) in SYSTEM_PROMPT
+    # The strict rules sit between GROUNDING RULES and LANGUAGE.
+    assert (
+        SYSTEM_PROMPT.index("GROUNDING RULES")
+        < SYSTEM_PROMPT.index("STRICT OBSERVATIONS RULE")
+        < SYSTEM_PROMPT.index("STRICT RECOMMENDATIONS RULE")
+        < SYSTEM_PROMPT.index("EXAMPLE of correct section separation")
+        < SYSTEM_PROMPT.index("BASELINE TRANSPARENCY")
+        < SYSTEM_PROMPT.index("LANGUAGE:")
+    )
+
+
 def test_weekly_prompt_with_anomalies() -> None:
     summary = PeriodSummary(
         start_date=date(2026, 7, 6),
@@ -45,6 +73,10 @@ def test_weekly_prompt_with_anomalies() -> None:
         worst_day=date(2026, 7, 8),
         baseline_daily_kwh=23.5,
         anomalies=["Production on 2026-07-08 dropped 47% below the rolling baseline"],
+        baseline_warning=(
+            "Baseline computed on only 5 days of historical data. "
+            "Accuracy will improve as more history accumulates."
+        ),
     )
     prompt = build_user_prompt(FULL_SYSTEM, summary, period_label="week")
     assert prompt == (
@@ -76,6 +108,10 @@ def test_weekly_prompt_with_anomalies() -> None:
         "\n"
         "ANOMALIES DETECTED:\n"
         "- Production on 2026-07-08 dropped 47% below the rolling baseline\n"
+        "\n"
+        "BASELINE RELIABILITY WARNING:\n"
+        "Baseline computed on only 5 days of historical data. "
+        "Accuracy will improve as more history accumulates.\n"
         "\n"
         "Now write the report following the structure and rules from the system prompt.\n"
     )

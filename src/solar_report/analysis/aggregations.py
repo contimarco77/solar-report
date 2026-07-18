@@ -53,7 +53,7 @@ def summarize_period(
     if reference.tzinfo is None:
         raise ValueError("reference must be timezone-aware")
     end = reference.date()
-    start = _period_start(period, end)
+    start = period_start(period, end)
     daily_values = [
         (day, kwh)
         for day, kwh in aggregate_daily(points, tz=reference.tzinfo)
@@ -80,7 +80,7 @@ def summarize_period(
     )
 
 
-def _period_start(period: Period, end: date) -> date:
+def period_start(period: Period, end: date) -> date:
     """First calendar day of the period ending on ``end`` (inclusive)."""
     if period == "day":
         return end
