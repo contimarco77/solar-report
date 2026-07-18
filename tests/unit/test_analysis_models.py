@@ -61,10 +61,10 @@ class TestPeriodSummary:
             daily_values=self.DAILY,
             best_day=date(2026, 7, 8),
             worst_day=date(2026, 7, 9),
-            baseline_kwh_avg=17.0,
+            baseline_daily_kwh=17.0,
         )
         assert summary.total_kwh == 49.8
-        assert summary.baseline_kwh_avg == 17.0
+        assert summary.baseline_daily_kwh == 17.0
 
     def test_rejects_negative_daily_value(self) -> None:
         with pytest.raises(ValidationError, match="2026-07-08"):
@@ -89,14 +89,14 @@ class TestPeriodSummary:
             )
 
     def test_from_daily_values_computes_totals(self) -> None:
-        summary = PeriodSummary.from_daily_values(self.DAILY, baseline_kwh_avg=17.0)
+        summary = PeriodSummary.from_daily_values(self.DAILY, baseline_daily_kwh=17.0)
 
         assert summary.start_date == date(2026, 7, 7)
         assert summary.end_date == date(2026, 7, 9)
         assert summary.total_kwh == pytest.approx(49.8)
         assert summary.best_day == date(2026, 7, 8)
         assert summary.worst_day == date(2026, 7, 9)
-        assert summary.baseline_kwh_avg == 17.0
+        assert summary.baseline_daily_kwh == 17.0
 
     def test_from_daily_values_rejects_empty_input(self) -> None:
         with pytest.raises(ValueError, match="must not be empty"):

@@ -58,8 +58,8 @@ class PeriodSummary(_StrictModel):
     """Date with the highest production, or None when the period has no data."""
     worst_day: date | None
     """Date with the lowest production, or None when the period has no data."""
-    baseline_kwh_avg: float | None = Field(default=None, ge=0)
-    """Rolling-baseline daily average (kWh) for deviation comparisons."""
+    baseline_daily_kwh: float = Field(default=0.0, ge=0)
+    """4-week rolling daily average used as reference for anomaly detection."""
     anomalies: list[str] = Field(default_factory=list)
     """Human-readable anomaly observations for the period."""
 
@@ -83,7 +83,7 @@ class PeriodSummary(_StrictModel):
     def from_daily_values(
         cls,
         daily_values: list[tuple[date, float]],
-        baseline_kwh_avg: float | None = None,
+        baseline_daily_kwh: float = 0.0,
     ) -> PeriodSummary:
         """Build a summary from per-day values, computing totals and best/worst days."""
         if not daily_values:
@@ -98,5 +98,5 @@ class PeriodSummary(_StrictModel):
             daily_values=ordered,
             best_day=best_day,
             worst_day=worst_day,
-            baseline_kwh_avg=baseline_kwh_avg,
+            baseline_daily_kwh=baseline_daily_kwh,
         )

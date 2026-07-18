@@ -36,6 +36,7 @@ dev = [
     "mypy>=1.11",
     "types-PyYAML",
     "pandas-stubs",
+    "python-dotenv",
 ]
 
 [project.urls]
@@ -55,6 +56,10 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# SYSTEM_PROMPT is a verbatim, snapshot-tested LLM prompt; its lines must not be wrapped.
+"src/solar_report/report/prompts.py" = ["E501"]
 
 [tool.mypy]
 strict = true

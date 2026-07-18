@@ -48,7 +48,7 @@ def detect_anomalies(
 
     A day is flagged when its production deviates from ``baseline_daily_kwh``
     by strictly more than ``threshold_pct`` percent in either direction, e.g.
-    ``"Wednesday (2026-07-15) produced 8.2 kWh, 42% below the 4-week average
+    ``"Wednesday (2026-07-15) produced 8.2 kWh, 41.8% below the 4-week average
     of 14.1 kWh"``. The "4-week average" phrasing assumes the default
     ``compute_baseline`` window. Returns an empty list when nothing is notable
     or when ``baseline_daily_kwh`` is not positive (no meaningful comparison).
@@ -63,7 +63,7 @@ def detect_anomalies(
         direction = "below" if deviation_pct < 0 else "above"
         observations.append(
             f"{day.strftime('%A')} ({day.isoformat()}) produced {kwh:.1f} kWh, "
-            f"{abs(deviation_pct):.0f}% {direction} the 4-week average "
+            f"{abs(deviation_pct):.1f}% {direction} the 4-week average "
             f"of {baseline_daily_kwh:.1f} kWh"
         )
     return observations
