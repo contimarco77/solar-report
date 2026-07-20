@@ -10,6 +10,10 @@ source:
   kind: "csv"                # home_assistant | csv
   csv:
     path: "./sample-data/example-week.csv"
+    # Optional second CSV of vendor-reported events (see docs/events-format.md).
+    # Uncomment and set a path to enrich Observations/Recommendations with
+    # correlated alarms. Omit entirely to run without an events source.
+    # events_path: "./sample-data/example-week-events.csv"
   # Home Assistant support is coming in v0.1; uncomment once available.
   # Env var references like ${HA_TOKEN} must be set when the section is active.
   # home_assistant:

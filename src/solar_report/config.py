@@ -40,6 +40,9 @@ class HomeAssistantConfig(_StrictModel):
 
 class CsvConfig(_StrictModel):
     path: Path
+    events_path: Path | None = None
+    """Optional second CSV of vendor-reported events (see docs/events-format.md).
+    When unset, the tool behaves exactly as without an events source."""
 
 
 class SourceConfig(_StrictModel):

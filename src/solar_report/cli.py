@@ -12,12 +12,13 @@ import typer
 from dotenv import load_dotenv
 
 from solar_report.analysis.aggregations import period_start
+from solar_report.analysis.models import EventRecord
 from solar_report.analysis.pipeline import build_summary
 from solar_report.config import Config, load_config
 from solar_report.llm.client import AnthropicClient
 from solar_report.report.generator import ReportGenerator
 from solar_report.sources.base import DataSource
-from solar_report.sources.csv_source import CsvDataSource
+from solar_report.sources.csv_source import CsvDataSource, read_events_csv
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -118,7 +119,16 @@ def generate(
     points = source.read(start_dt, reference_dt)
     historical_points = source.read(start_dt - timedelta(days=BASELINE_WINDOW_DAYS), start_dt)
 
-    summary = build_summary(points, historical_points, period=period_label, reference=reference_dt)
+    events: list[EventRecord] | None = None
+    if config.source.kind == "csv":
+        assert config.source.csv is not None  # guaranteed by SourceConfig validator
+        events_path = config.source.csv.events_path
+        if events_path is not None:
+            events = read_events_csv(events_path, start_dt, reference_dt)
+
+    summary = build_summary(
+        points, historical_points, period=period_label, reference=reference_dt, events=events
+    )
 
     client = AnthropicClient(config.llm.api_key, config.llm.model, config.llm.max_tokens)
     generator = ReportGenerator(client)

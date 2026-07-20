@@ -7,7 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from solar_report.analysis.models import ProductionData
+from solar_report.analysis.models import EventRecord, ProductionData
+from solar_report.analysis.pipeline import build_summary
 from solar_report.cli import DRY_RUN_BODY, app
 
 runner = CliRunner()
@@ -23,7 +24,7 @@ WEEK_POINTS = [
 ]
 
 
-def _write_config(tmp_path: Path, **report_overrides: str) -> Path:
+def _write_config(tmp_path: Path, events_path: Path | None = None, **report_overrides: str) -> Path:
     report = {
         "period": "week",
         "output_format": "markdown",
@@ -31,6 +32,7 @@ def _write_config(tmp_path: Path, **report_overrides: str) -> Path:
     }
     report.update(report_overrides)
     report_yaml = "\n".join(f'  {key}: "{value}"' for key, value in report.items())
+    events_line = f'    events_path: "{events_path}"\n' if events_path is not None else ""
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
         f"""\
@@ -42,7 +44,7 @@ source:
   kind: "csv"
   csv:
     path: "{tmp_path / "production.csv"}"
-report:
+{events_line}report:
 {report_yaml}
 llm:
   api_key: "${{ANTHROPIC_API_KEY}}"
@@ -238,3 +240,52 @@ def test_day_period_from_config_is_rejected(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "not supported" in result.output
+
+
+def test_events_path_reads_events_in_the_reporting_period_window(tmp_path: Path) -> None:
+    events_path = tmp_path / "events.csv"
+    config_path = _write_config(tmp_path, events_path=events_path)
+    events = [
+        EventRecord(
+            timestamp=datetime(2026, 7, 15, 14, 30, tzinfo=UTC),
+            severity="warning",
+            code="INV-042",
+            message="Inverter derating detected",
+        )
+    ]
+
+    with (
+        patch("solar_report.cli._build_source", return_value=_fake_source()),
+        patch("solar_report.cli.AnthropicClient"),
+        patch("solar_report.cli.read_events_csv", return_value=events) as read_events,
+        patch("solar_report.cli.build_summary", wraps=build_summary) as build_summary_spy,
+    ):
+        result = runner.invoke(
+            app,
+            ["generate", "--config", str(config_path), "--reference", REFERENCE, "--dry-run"],
+        )
+
+    assert result.exit_code == 0, result.output
+    read_events.assert_called_once_with(
+        events_path,
+        datetime(2026, 7, 13, tzinfo=UTC),
+        datetime.fromisoformat(f"{REFERENCE}T23:59:59.999999+00:00"),
+    )
+    assert build_summary_spy.call_args.kwargs["events"] == events
+
+
+def test_no_events_path_means_no_events_read(tmp_path: Path) -> None:
+    config_path = _write_config(tmp_path)
+
+    with (
+        patch("solar_report.cli._build_source", return_value=_fake_source()),
+        patch("solar_report.cli.AnthropicClient"),
+        patch("solar_report.cli.read_events_csv") as read_events,
+    ):
+        result = runner.invoke(
+            app,
+            ["generate", "--config", str(config_path), "--reference", REFERENCE, "--dry-run"],
+        )
+
+    assert result.exit_code == 0, result.output
+    read_events.assert_not_called()

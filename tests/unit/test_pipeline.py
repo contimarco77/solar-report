@@ -2,7 +2,7 @@
 
 from datetime import UTC, date, datetime, timedelta
 
-from solar_report.analysis.models import ProductionData
+from solar_report.analysis.models import EventRecord, ProductionData
 from solar_report.analysis.pipeline import build_summary
 
 REFERENCE = datetime(2026, 7, 12, 23, 0, tzinfo=UTC)
@@ -36,6 +36,33 @@ def test_empty_input_returns_empty_summary_with_empty_anomalies() -> None:
     assert summary.worst_day is None
     assert summary.baseline_daily_kwh == 0.0
     assert summary.anomalies == []
+    assert summary.events == []
+
+
+def test_events_default_to_empty_when_not_passed() -> None:
+    points = _steady_days(PERIOD_START, days=7, kwh=20.0)
+
+    summary = build_summary(points, _baseline_history(20.0), period="week", reference=REFERENCE)
+
+    assert summary.events == []
+
+
+def test_events_are_attached_to_the_summary() -> None:
+    points = _steady_days(PERIOD_START, days=7, kwh=20.0)
+    events = [
+        EventRecord(
+            timestamp=datetime(2026, 7, 8, 14, 30, tzinfo=UTC),
+            severity="warning",
+            code="INV-042",
+            message="Inverter derating detected",
+        )
+    ]
+
+    summary = build_summary(
+        points, _baseline_history(20.0), period="week", reference=REFERENCE, events=events
+    )
+
+    assert summary.events == events
 
 
 def test_clear_anomaly_is_detected_and_attached() -> None:

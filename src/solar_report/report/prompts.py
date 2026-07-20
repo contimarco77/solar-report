@@ -10,7 +10,7 @@ from datetime import date
 from typing import Literal
 
 from solar_report.analysis.anomalies import format_anomaly
-from solar_report.analysis.models import AnomalyEvent, PeriodSummary
+from solar_report.analysis.models import AnomalyEvent, EventRecord, PeriodSummary
 from solar_report.config import SystemConfig
 
 _LANGUAGE_LINE = "LANGUAGE: write in English."
@@ -68,6 +68,8 @@ STRICT OBSERVATIONS RULE: The Observations section must reflect ONLY the entries
 
 STRICT RECOMMENDATIONS RULE: Only include the Recommendations section if there are entries in "ANOMALIES DETECTED". If the anomalies list is empty, omit the section entirely — do not write it with placeholder text.
 
+STRICT EVENTS RULE: The input may include an "EVENTS LOGGED" section. If it is empty or says "(none logged)", do not mention events anywhere in the report. Otherwise, you may reference an event in Observations or Recommendations ONLY if it is marked "[matches anomaly day]" in the input — that correlation was already computed and verified outside the model. Never infer or state a correlation between an event and a production anomaly yourself; only report a correlation that is already marked as such in the input. Events not marked as matching must not be mentioned.
+
 EXAMPLE of correct section separation:
 - Trend describes distribution shape: "Production was uneven, with a mid-week dip and stronger output at the start and end."
 - Observations, when anomalies exist, name specific days: "Wednesday produced X kWh, Y% below baseline."
@@ -98,6 +100,25 @@ def _format_anomalies(anomalies: list[AnomalyEvent]) -> str:
     if not anomalies:
         return "(none detected)"
     return "\n".join(f"- {format_anomaly(event)}" for event in anomalies)
+
+
+def _format_events(events: list[EventRecord], anomalies: list[AnomalyEvent]) -> str:
+    """Render events, marking any that fall on a day already in ``anomalies``.
+
+    The correlation is computed here in Python, not left for the model to
+    infer, per the STRICT EVENTS RULE in the system prompt: the model may
+    only repeat a correlation already marked in its input.
+    """
+    if not events:
+        return "(none logged)"
+    anomaly_days = {anomaly.day for anomaly in anomalies}
+    lines = []
+    for event in events:
+        line = f"- {event.timestamp.isoformat()} [{event.severity}] {event.code}: {event.message}"
+        if event.timestamp.date() in anomaly_days:
+            line += " [matches anomaly day]"
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _format_baseline_warning(warning: str | None) -> str:
@@ -135,6 +156,9 @@ DAILY BREAKDOWN:
 
 ANOMALIES DETECTED:
 {_format_anomalies(summary.anomalies)}
+
+EVENTS LOGGED:
+{_format_events(summary.events, summary.anomalies)}
 
 {_format_baseline_warning(summary.baseline_warning)}\
 Now write the report following the structure and rules from the system prompt.

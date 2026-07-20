@@ -4,13 +4,13 @@ These assert exact string output on purpose: any wording change in the
 prompt must show up as an explicit test diff.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 
-from solar_report.analysis.models import AnomalyEvent, PeriodSummary
+from solar_report.analysis.models import AnomalyEvent, EventRecord, PeriodSummary
 from solar_report.config import SystemConfig
-from solar_report.report.prompts import build_system_prompt, build_user_prompt
+from solar_report.report.prompts import _format_events, build_system_prompt, build_user_prompt
 
 SYSTEM_PROMPT = build_system_prompt()
 
@@ -56,11 +56,16 @@ def test_system_prompt_contains_strict_grounding_rules() -> None:
     assert (
         'BASELINE TRANSPARENCY: If the input includes a "BASELINE RELIABILITY WARNING" section'
     ) in SYSTEM_PROMPT
+    assert (
+        'STRICT EVENTS RULE: The input may include an "EVENTS LOGGED" section.'
+    ) in SYSTEM_PROMPT
+    assert '"[matches anomaly day]"' in SYSTEM_PROMPT
     # The strict rules sit between GROUNDING RULES and LANGUAGE.
     assert (
         SYSTEM_PROMPT.index("GROUNDING RULES")
         < SYSTEM_PROMPT.index("STRICT OBSERVATIONS RULE")
         < SYSTEM_PROMPT.index("STRICT RECOMMENDATIONS RULE")
+        < SYSTEM_PROMPT.index("STRICT EVENTS RULE")
         < SYSTEM_PROMPT.index("EXAMPLE of correct section separation")
         < SYSTEM_PROMPT.index("BASELINE TRANSPARENCY")
         < SYSTEM_PROMPT.index("LANGUAGE:")
@@ -81,9 +86,7 @@ def test_weekly_prompt_with_anomalies() -> None:
         best_day=date(2026, 7, 10),
         worst_day=date(2026, 7, 8),
         baseline_daily_kwh=23.5,
-        anomalies=[
-            AnomalyEvent(day=date(2026, 7, 8), kwh=12.3, pct_below=47.7, baseline_kwh=23.5)
-        ],
+        anomalies=[AnomalyEvent(day=date(2026, 7, 8), kwh=12.3, pct_below=47.7, baseline_kwh=23.5)],
         baseline_warning=(
             "Baseline computed on only 5 days of historical data. "
             "Accuracy will improve as more history accumulates."
@@ -120,6 +123,9 @@ def test_weekly_prompt_with_anomalies() -> None:
         "ANOMALIES DETECTED:\n"
         "- Wednesday (2026-07-08) produced 12.3 kWh, 47.7% below the 4-week "
         "average of 23.5 kWh\n"
+        "\n"
+        "EVENTS LOGGED:\n"
+        "(none logged)\n"
         "\n"
         "BASELINE RELIABILITY WARNING:\n"
         "Baseline computed on only 5 days of historical data. "
@@ -167,6 +173,9 @@ def test_weekly_prompt_without_anomalies_and_optional_metadata() -> None:
         "ANOMALIES DETECTED:\n"
         "(none detected)\n"
         "\n"
+        "EVENTS LOGGED:\n"
+        "(none logged)\n"
+        "\n"
         "Now write the report following the structure and rules from the system prompt.\n"
     )
 
@@ -201,3 +210,70 @@ def test_prompt_with_empty_daily_values() -> None:
     assert "- Worst day: not available (no production data)\n" in prompt
     assert "DAILY BREAKDOWN:\n(no data in this period)\n" in prompt
     assert "ANOMALIES DETECTED:\n(none detected)\n" in prompt
+    assert "EVENTS LOGGED:\n(none logged)\n" in prompt
+
+
+def test_format_events_empty() -> None:
+    assert _format_events([], []) == "(none logged)"
+
+
+def test_format_events_marks_day_matching_an_anomaly() -> None:
+    events = [
+        EventRecord(
+            timestamp=datetime(2026, 7, 8, 14, 30, tzinfo=UTC),
+            severity="warning",
+            code="INV-042",
+            message="Inverter derating detected",
+        )
+    ]
+    anomalies = [AnomalyEvent(day=date(2026, 7, 8), kwh=12.3, pct_below=47.7, baseline_kwh=23.5)]
+
+    formatted = _format_events(events, anomalies)
+
+    assert formatted == (
+        "- 2026-07-08T14:30:00+00:00 [warning] INV-042: Inverter derating detected"
+        " [matches anomaly day]"
+    )
+
+
+def test_format_events_does_not_mark_day_without_a_matching_anomaly() -> None:
+    events = [
+        EventRecord(
+            timestamp=datetime(2026, 7, 9, 9, 0, tzinfo=UTC),
+            severity="info",
+            code="SYS-001",
+            message="Scheduled maintenance check",
+        )
+    ]
+
+    formatted = _format_events(events, anomalies=[])
+
+    assert formatted == "- 2026-07-09T09:00:00+00:00 [info] SYS-001: Scheduled maintenance check"
+    assert "[matches anomaly day]" not in formatted
+
+
+def test_user_prompt_includes_events_section_with_correlation_marker() -> None:
+    summary = PeriodSummary(
+        start_date=date(2026, 7, 6),
+        end_date=date(2026, 7, 12),
+        total_kwh=155.0,
+        daily_values=WEEK_DAILY_VALUES,
+        best_day=date(2026, 7, 10),
+        worst_day=date(2026, 7, 8),
+        baseline_daily_kwh=23.5,
+        anomalies=[AnomalyEvent(day=date(2026, 7, 8), kwh=12.3, pct_below=47.7, baseline_kwh=23.5)],
+        events=[
+            EventRecord(
+                timestamp=datetime(2026, 7, 8, 14, 30, tzinfo=UTC),
+                severity="warning",
+                code="INV-042",
+                message="Inverter derating detected",
+            )
+        ],
+    )
+    prompt = build_user_prompt(FULL_SYSTEM, summary, period_label="week")
+    assert (
+        "EVENTS LOGGED:\n"
+        "- 2026-07-08T14:30:00+00:00 [warning] INV-042: Inverter derating detected"
+        " [matches anomaly day]\n"
+    ) in prompt

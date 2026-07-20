@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -62,6 +63,23 @@ class AnomalyEvent(_StrictModel):
     baseline_kwh: float = Field(ge=0)
 
 
+class EventRecord(_StrictModel):
+    """A single vendor-reported alarm/event, from an optional events source.
+
+    Availability varies by vendor (dedicated event log, per-sensor status,
+    cloud alarm endpoints, or none at all for plain CSV exports), so this
+    model is populated only when an events source is configured; production
+    reporting must work unchanged without it.
+    """
+
+    timestamp: AwareDatetime
+    severity: Literal["info", "warning", "critical"]
+    """Strict three-level scale; sources with vendor-specific severities must
+    map onto these before instantiating ``EventRecord``."""
+    code: str
+    message: str
+
+
 class PeriodSummary(_StrictModel):
     """Aggregated production stats for a reporting period."""
 
@@ -77,6 +95,8 @@ class PeriodSummary(_StrictModel):
     """4-week rolling daily average used as reference for anomaly detection."""
     anomalies: list[AnomalyEvent] = Field(default_factory=list)
     """Anomaly events detected for the period, as data — not pre-rendered strings."""
+    events: list[EventRecord] = Field(default_factory=list)
+    """Vendor-reported events for the period, from an optional events source."""
     baseline_warning: str | None = Field(
         default=None,
         description="Set when the baseline is computed on limited historical data; "

@@ -11,7 +11,7 @@ from datetime import datetime, time
 
 from solar_report.analysis.aggregations import Period, summarize_period
 from solar_report.analysis.anomalies import compute_baseline, detect_anomalies
-from solar_report.analysis.models import PeriodSummary, ProductionData
+from solar_report.analysis.models import EventRecord, PeriodSummary, ProductionData
 
 MIN_BASELINE_DAYS = 14
 """Minimum distinct historical days ("at least two weeks of daily data")
@@ -23,6 +23,7 @@ def build_summary(
     historical_points: list[ProductionData],
     period: Period,
     reference: datetime,
+    events: list[EventRecord] | None = None,
 ) -> PeriodSummary:
     """Summarize the period ending at ``reference`` with baseline and anomalies attached.
 
@@ -50,6 +51,7 @@ def build_summary(
         update={
             "baseline_daily_kwh": baseline_daily_kwh,
             "anomalies": anomalies,
+            "events": events or [],
             "baseline_warning": baseline_warning,
         }
     )
