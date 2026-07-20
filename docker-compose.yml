@@ -1,0 +1,14 @@
+services:
+  solar-report:
+    build: .
+    image: solar-report:latest
+    container_name: solar-report
+    env_file:
+      - .env
+    volumes:
+      # config.yaml and sample-data are mounted (not just copied at build
+      # time) so they can be changed without rebuilding the image.
+      - ./config.yaml:/app/config.yaml:ro
+      - ./sample-data:/app/sample-data:ro
+      - ./reports:/app/reports
+    command: ["generate", "--config", "config.yaml", "--period", "week"]

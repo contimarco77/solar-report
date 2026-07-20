@@ -1,0 +1,26 @@
+# Local environment and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.DS_Store
+
+# Git and personal docs (must not end up in the build context)
+.git/
+.github/
+CLAUDE.local.md
+src/scratch/
+
+# Secrets and local user config: provided via bind mount, not baked into the build
+.env
+config.yaml
+
+# Not needed in the runtime image
+tests/
+docs/
+reports/
