@@ -128,6 +128,7 @@ def generate(
             summary=summary,
             period_label=period_label,
             output_format=config.report.output_format,
+            language=config.report.language,
             _body_override=DRY_RUN_BODY if dry_run else None,
         )
     )

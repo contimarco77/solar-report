@@ -9,10 +9,32 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from solar_report.analysis.models import PeriodSummary
+from solar_report.analysis.anomalies import format_anomaly
+from solar_report.analysis.models import AnomalyEvent, PeriodSummary
 from solar_report.config import SystemConfig
 
-SYSTEM_PROMPT = """\
+_LANGUAGE_LINE = "LANGUAGE: write in English."
+"""Only "en" is supported for v0.1; ``build_system_prompt`` interpolates this
+line rather than hardcoding it, so v0.2 can add other languages by extending
+this mapping instead of touching the surrounding prompt structure."""
+
+_LANGUAGE_LINES: dict[str, str] = {"en": _LANGUAGE_LINE}
+
+
+def build_system_prompt(language: str = "en") -> str:
+    """Build the system prompt, with the LANGUAGE instruction parameterized.
+
+    Only "en" is implemented; other values raise. This keeps the prompt
+    itself a versioned, snapshot-tested string while making the language
+    instruction a real parameter instead of a hardcoded line, so v0.2 can
+    add locales without another structural refactor.
+    """
+    if language not in _LANGUAGE_LINES:
+        raise ValueError(f"unsupported language: {language!r}")
+    return _SYSTEM_PROMPT_TEMPLATE.format(language_line=_LANGUAGE_LINES[language])
+
+
+_SYSTEM_PROMPT_TEMPLATE = """\
 You are an energy consultant writing a periodic report about a residential or small commercial photovoltaic system. You are writing directly to the system owner, who is technically competent but not an energy expert. Your tone is professional but human: like a trusted advisor who has known the client for years.
 
 Follow these rules strictly:
@@ -53,7 +75,7 @@ EXAMPLE of correct section separation:
 
 BASELINE TRANSPARENCY: If the input includes a "BASELINE RELIABILITY WARNING" section, add a short italicized note at the very end of the Overview section (before the ## Trend heading) reporting the warning to the reader. Format: "_Note: [warning text verbatim]_" on its own line. Do NOT put this note in Trend, Observations, or elsewhere. If there is no warning in the input, do NOT add any such note.
 
-LANGUAGE: write in English.
+{language_line}
 
 OUTPUT FORMAT: valid Markdown. No preamble, no closing remarks, no meta-comments. Start directly with "## Overview".
 """
@@ -72,10 +94,10 @@ def _format_daily_values(daily_values: list[tuple[date, float]]) -> str:
     return "\n".join(f"- {day.strftime('%A %Y-%m-%d')}: {kwh:.1f} kWh" for day, kwh in daily_values)
 
 
-def _format_anomalies(anomalies: list[str]) -> str:
+def _format_anomalies(anomalies: list[AnomalyEvent]) -> str:
     if not anomalies:
         return "(none detected)"
-    return "\n".join(f"- {anomaly}" for anomaly in anomalies)
+    return "\n".join(f"- {format_anomaly(event)}" for event in anomalies)
 
 
 def _format_baseline_warning(warning: str | None) -> str:

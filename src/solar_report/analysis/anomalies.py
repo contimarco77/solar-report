@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from solar_report.analysis.aggregations import aggregate_daily
-from solar_report.analysis.models import PeriodSummary, ProductionData
+from solar_report.analysis.models import AnomalyEvent, PeriodSummary, ProductionData
 
 
 def compute_baseline(
@@ -43,30 +43,52 @@ def detect_anomalies(
     summary: PeriodSummary,
     baseline_daily_kwh: float,
     threshold_pct: float = 25.0,
-) -> list[str]:
-    """Human-readable observations for days underperforming the baseline.
+) -> list[AnomalyEvent]:
+    """Detect days underperforming the baseline, as data (no rendered text).
 
     A day is flagged only when its production falls below
-    ``baseline_daily_kwh`` by strictly more than ``threshold_pct`` percent,
-    e.g. ``"Wednesday (2026-07-15) produced 8.2 kWh, 41.8% below the 4-week
-    average of 14.1 kWh"``. Days above baseline are never flagged: for health
-    monitoring they are just good weather, not anomalies. Conservative default
-    to avoid flagging normal weather variability. Only surfaces genuine
-    deviations worth investigating. The "4-week average" phrasing assumes the
-    default ``compute_baseline`` window. Returns an empty list when nothing is
-    notable or when ``baseline_daily_kwh`` is not positive (no meaningful
-    comparison).
+    ``baseline_daily_kwh`` by strictly more than ``threshold_pct`` percent.
+    Days above baseline are never flagged: for health monitoring they are
+    just good weather, not anomalies. Conservative default to avoid flagging
+    normal weather variability. Only surfaces genuine deviations worth
+    investigating. Returns an empty list when nothing is notable or when
+    ``baseline_daily_kwh`` is not positive (no meaningful comparison).
     """
     if baseline_daily_kwh <= 0:
         return []
-    observations: list[str] = []
+    events: list[AnomalyEvent] = []
     for day, kwh in summary.daily_values:
         deficit_pct = (baseline_daily_kwh - kwh) / baseline_daily_kwh * 100.0
         if deficit_pct <= threshold_pct:
             continue
-        observations.append(
-            f"{day.strftime('%A')} ({day.isoformat()}) produced {kwh:.1f} kWh, "
-            f"{deficit_pct:.1f}% below the 4-week average "
-            f"of {baseline_daily_kwh:.1f} kWh"
+        events.append(
+            AnomalyEvent(
+                day=day,
+                kwh=kwh,
+                pct_below=deficit_pct,
+                baseline_kwh=baseline_daily_kwh,
+            )
         )
-    return observations
+    return events
+
+
+def format_anomaly(event: AnomalyEvent, language: str = "en") -> str:
+    """Render an ``AnomalyEvent`` as a human-readable observation string.
+
+    Only English is implemented for v0.1 (``language`` is otherwise unused);
+    the parameter exists so the v0.2 translation work is a matter of adding
+    branches here, not re-plumbing every caller. Kept next to
+    ``detect_anomalies`` rather than in a separate ``i18n`` module: there is
+    a single presentation function today, and colocating it with the data it
+    renders keeps the diff small until a second locale actually justifies a
+    dedicated module.
+
+    Produces e.g. ``"Wednesday (2026-07-15) produced 8.2 kWh, 41.8% below the
+    4-week average of 14.1 kWh"``. The "4-week average" phrasing assumes the
+    default ``compute_baseline`` window.
+    """
+    return (
+        f"{event.day.strftime('%A')} ({event.day.isoformat()}) produced {event.kwh:.1f} kWh, "
+        f"{event.pct_below:.1f}% below the 4-week average "
+        f"of {event.baseline_kwh:.1f} kWh"
+    )

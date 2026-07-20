@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 
-from solar_report.analysis.anomalies import compute_baseline, detect_anomalies
+from solar_report.analysis.anomalies import compute_baseline, detect_anomalies, format_anomaly
 from solar_report.analysis.models import PeriodSummary, ProductionData
 
 ROME = timezone(timedelta(hours=2))  # CEST, fixed offset for determinism
@@ -97,9 +97,14 @@ class TestDetectAnomalies:
     def test_day_below_threshold_flagged(self) -> None:
         summary = _summary([(date(2026, 7, 15), 8.2)])  # a Wednesday
         observations = detect_anomalies(summary, baseline_daily_kwh=14.1)
-        assert observations == [
+        assert len(observations) == 1
+        assert observations[0].day == date(2026, 7, 15)
+        assert observations[0].kwh == 8.2
+        assert observations[0].baseline_kwh == 14.1
+        assert observations[0].pct_below == pytest.approx(41.8, abs=0.05)
+        assert format_anomaly(observations[0]) == (
             "Wednesday (2026-07-15) produced 8.2 kWh, 41.8% below the 4-week average of 14.1 kWh"
-        ]
+        )
 
     def test_day_within_threshold_not_flagged(self) -> None:
         summary = _summary([(date(2026, 7, 15), 13.0)])  # ~8% below baseline
@@ -113,7 +118,8 @@ class TestDetectAnomalies:
         summary = _summary([(date(2026, 7, 15), 7.0)])  # 30% below 10.0
         observations = detect_anomalies(summary, baseline_daily_kwh=10.0)
         assert len(observations) == 1
-        assert "30.0% below the 4-week average of 10.0 kWh" in observations[0]
+        assert observations[0].pct_below == pytest.approx(30.0)
+        assert "30.0% below the 4-week average of 10.0 kWh" in format_anomaly(observations[0])
 
     def test_day_above_baseline_never_flagged(self) -> None:
         summary = _summary([(date(2026, 7, 15), 14.0)])  # 40% above 10.0
@@ -145,7 +151,7 @@ class TestDetectAnomalies:
         )
         observations = detect_anomalies(summary, baseline_daily_kwh=10.0)
         assert len(observations) == 1
-        assert observations[0].startswith("Monday (2026-07-13) produced 4.0 kWh")
+        assert format_anomaly(observations[0]).startswith("Monday (2026-07-13) produced 4.0 kWh")
 
     def test_custom_threshold_respected(self) -> None:
         summary = _summary([(date(2026, 7, 15), 9.0)])  # 10% below baseline

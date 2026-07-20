@@ -17,7 +17,7 @@ from markupsafe import Markup
 from solar_report.analysis.models import PeriodSummary
 from solar_report.config import SystemConfig
 from solar_report.llm.client import AnthropicClient
-from solar_report.report.prompts import SYSTEM_PROMPT, build_user_prompt
+from solar_report.report.prompts import build_system_prompt, build_user_prompt
 
 _TEMPLATE_NAMES: dict[str, str] = {
     "markdown": "report.md.j2",
@@ -48,6 +48,7 @@ class ReportGenerator:
         summary: PeriodSummary,
         period_label: Literal["week", "month"],
         output_format: Literal["markdown", "html"] = "markdown",
+        language: str = "en",
         _body_override: str | None = None,
     ) -> str:
         """Build the prompts, call the LLM, and render the full report.
@@ -60,7 +61,7 @@ class ReportGenerator:
         else:
             user_prompt = build_user_prompt(system, summary, period_label)
             body_markdown = await self._client.generate(
-                system_prompt=SYSTEM_PROMPT, user_prompt=user_prompt
+                system_prompt=build_system_prompt(language), user_prompt=user_prompt
             )
         template = self._environment.get_template(_TEMPLATE_NAMES[output_format])
         return template.render(

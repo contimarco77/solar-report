@@ -6,9 +6,13 @@ prompt must show up as an explicit test diff.
 
 from datetime import date
 
-from solar_report.analysis.models import PeriodSummary
+import pytest
+
+from solar_report.analysis.models import AnomalyEvent, PeriodSummary
 from solar_report.config import SystemConfig
-from solar_report.report.prompts import SYSTEM_PROMPT, build_user_prompt
+from solar_report.report.prompts import build_system_prompt, build_user_prompt
+
+SYSTEM_PROMPT = build_system_prompt()
 
 FULL_SYSTEM = SystemConfig(
     name="My rooftop PV",
@@ -63,6 +67,11 @@ def test_system_prompt_contains_strict_grounding_rules() -> None:
     )
 
 
+def test_build_system_prompt_rejects_unsupported_language() -> None:
+    with pytest.raises(ValueError, match="unsupported language"):
+        build_system_prompt("it")
+
+
 def test_weekly_prompt_with_anomalies() -> None:
     summary = PeriodSummary(
         start_date=date(2026, 7, 6),
@@ -72,7 +81,9 @@ def test_weekly_prompt_with_anomalies() -> None:
         best_day=date(2026, 7, 10),
         worst_day=date(2026, 7, 8),
         baseline_daily_kwh=23.5,
-        anomalies=["Production on 2026-07-08 dropped 47% below the rolling baseline"],
+        anomalies=[
+            AnomalyEvent(day=date(2026, 7, 8), kwh=12.3, pct_below=47.7, baseline_kwh=23.5)
+        ],
         baseline_warning=(
             "Baseline computed on only 5 days of historical data. "
             "Accuracy will improve as more history accumulates."
@@ -107,7 +118,8 @@ def test_weekly_prompt_with_anomalies() -> None:
         "- Sunday 2026-07-12: 22.4 kWh\n"
         "\n"
         "ANOMALIES DETECTED:\n"
-        "- Production on 2026-07-08 dropped 47% below the rolling baseline\n"
+        "- Wednesday (2026-07-08) produced 12.3 kWh, 47.7% below the 4-week "
+        "average of 23.5 kWh\n"
         "\n"
         "BASELINE RELIABILITY WARNING:\n"
         "Baseline computed on only 5 days of historical data. "

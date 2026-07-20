@@ -46,8 +46,7 @@ def test_clear_anomaly_is_detected_and_attached() -> None:
 
     assert summary.baseline_daily_kwh == 20.0
     assert len(summary.anomalies) == 1
-    assert "2026-07-08" in summary.anomalies[0]
-    assert "below" in summary.anomalies[0]
+    assert summary.anomalies[0].day == date(2026, 7, 8)
 
 
 def test_no_anomaly_when_production_matches_baseline() -> None:

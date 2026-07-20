@@ -47,6 +47,21 @@ class ProductionData(_StrictModel):
         return value
 
 
+class AnomalyEvent(_StrictModel):
+    """A single day's production deviation below the rolling baseline.
+
+    Pure data: no presentation-language string. Rendering into human-readable
+    text is a separate concern (see ``format_anomaly``), so this model can be
+    reused unchanged when the report language becomes configurable.
+    """
+
+    day: date
+    kwh: float = Field(ge=0)
+    pct_below: float
+    """How far ``kwh`` falls below ``baseline_kwh``, in percent (e.g. 41.8)."""
+    baseline_kwh: float = Field(ge=0)
+
+
 class PeriodSummary(_StrictModel):
     """Aggregated production stats for a reporting period."""
 
@@ -60,8 +75,8 @@ class PeriodSummary(_StrictModel):
     """Date with the lowest production, or None when the period has no data."""
     baseline_daily_kwh: float = Field(default=0.0, ge=0)
     """4-week rolling daily average used as reference for anomaly detection."""
-    anomalies: list[str] = Field(default_factory=list)
-    """Human-readable anomaly observations for the period."""
+    anomalies: list[AnomalyEvent] = Field(default_factory=list)
+    """Anomaly events detected for the period, as data — not pre-rendered strings."""
     baseline_warning: str | None = Field(
         default=None,
         description="Set when the baseline is computed on limited historical data; "

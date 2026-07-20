@@ -3,11 +3,11 @@
 from datetime import date
 from unittest.mock import AsyncMock
 
-from solar_report.analysis.models import PeriodSummary
+from solar_report.analysis.models import AnomalyEvent, PeriodSummary
 from solar_report.config import SystemConfig
 from solar_report.llm.client import AnthropicClient
 from solar_report.report.generator import ReportGenerator
-from solar_report.report.prompts import SYSTEM_PROMPT
+from solar_report.report.prompts import build_system_prompt
 
 SYSTEM = SystemConfig(
     name="My rooftop PV",
@@ -26,7 +26,7 @@ SUMMARY = PeriodSummary(
     best_day=date(2026, 7, 7),
     worst_day=date(2026, 7, 6),
     baseline_daily_kwh=22.0,
-    anomalies=["Production on 2026-07-06 was 15% below the rolling baseline"],
+    anomalies=[AnomalyEvent(day=date(2026, 7, 6), kwh=18.7, pct_below=15.0, baseline_kwh=22.0)],
 )
 
 FAKE_REPORT = "## Overview\nA solid week for the system.\n"
@@ -52,11 +52,11 @@ async def test_generate_calls_client_with_expected_prompts() -> None:
 
     client.generate.assert_awaited_once()
     kwargs = client.generate.await_args.kwargs
-    assert kwargs["system_prompt"] == SYSTEM_PROMPT
+    assert kwargs["system_prompt"] == build_system_prompt()
 
     user_prompt = kwargs["user_prompt"]
     assert user_prompt.startswith("Generate a weekly report")
     assert "- Name: My rooftop PV\n" in user_prompt
     assert "- Total production: 46.4 kWh\n" in user_prompt
     assert "- Baseline (4-week rolling daily average): 22.0 kWh/day\n" in user_prompt
-    assert "- Production on 2026-07-06 was 15% below the rolling baseline" in user_prompt
+    assert "Monday (2026-07-06) produced 18.7 kWh, 15.0% below the 4-week average" in user_prompt
