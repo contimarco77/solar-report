@@ -1,0 +1,3 @@
+timestamp,severity,code,message
+2026-07-10T12:05:00+02:00,warning,INV_OVERTEMP,Inverter derating due to high internal temperature
+2026-07-10T15:25:00+02:00,info,INV_OVERTEMP,Inverter output restored to normal
