@@ -141,7 +141,7 @@ SYSTEM METADATA:
 - Location: {system.location or "not specified"}
 - Installed capacity: {system.installed_kwp} kWp
 - Panels: {system.panels or "not specified"}
-- Tilt: {system.tilt_deg}° / Azimuth: {system.azimuth_deg}°
+- Tilt: {f"{system.tilt_deg}°" if system.tilt_deg is not None else "not specified"} / Azimuth: {f"{system.azimuth_deg}°" if system.azimuth_deg is not None else "not specified"}
 
 PERIOD:
 - From: {summary.start_date}
