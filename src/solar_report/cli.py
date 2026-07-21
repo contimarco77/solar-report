@@ -47,7 +47,11 @@ def main() -> None:
 def _build_source(config: Config) -> DataSource:
     if config.source.kind == "csv":
         assert config.source.csv is not None  # guaranteed by SourceConfig validator
-        return CsvDataSource(config.source.csv.path)
+        return CsvDataSource(
+            config.source.csv.path,
+            separator=config.source.csv.separator,
+            decimal=config.source.csv.decimal,
+        )
     typer.echo(
         "The home_assistant source is not implemented yet; use a csv source for now.",
         err=True,
@@ -144,11 +148,14 @@ def generate(
     )
 
     suffix = ".html" if config.report.output_format == "html" else ".md"
-    output_path = Path(
-        config.report.output_path.replace("{period}", period_label).replace(
-            "{date}", summary.end_date.isoformat()
-        )
-    ).with_suffix(suffix)
+    raw_path = config.report.output_path.replace("{period}", period_label).replace(
+        "{date}", summary.end_date.isoformat()
+    )
+    for known_suffix in (".md", ".html"):
+        if raw_path.endswith(known_suffix):
+            raw_path = raw_path[: -len(known_suffix)]
+            break
+    output_path = Path(raw_path + suffix)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(rendered, encoding="utf-8")
     typer.echo(str(output_path))

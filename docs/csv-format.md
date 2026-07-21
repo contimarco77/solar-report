@@ -45,6 +45,8 @@ source:
   kind: "csv"
   csv:
     path: "./data/production.csv"
+    separator: ";"
+    decimal: ","
 ```
 
 and in code via `CsvDataSource(path, separator=";", decimal=",")`.

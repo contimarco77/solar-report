@@ -43,6 +43,8 @@ class CsvConfig(_StrictModel):
     events_path: Path | None = None
     """Optional second CSV of vendor-reported events (see docs/events-format.md).
     When unset, the tool behaves exactly as without an events source."""
+    separator: str = ","
+    decimal: str = "."
 
 
 class SourceConfig(_StrictModel):
@@ -64,7 +66,7 @@ class ReportConfig(_StrictModel):
     tone: Literal["friendly", "technical", "brief"] = "friendly"
     language: Literal["en"] = "en"
     output_format: Literal["markdown", "html"] = "markdown"
-    output_path: str = "./reports/{period}-{date}.md"
+    output_path: str = "./reports/{period}-{date}"
 
 
 class LlmConfig(_StrictModel):

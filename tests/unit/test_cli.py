@@ -9,7 +9,9 @@ from typer.testing import CliRunner
 
 from solar_report.analysis.models import EventRecord, ProductionData
 from solar_report.analysis.pipeline import build_summary
-from solar_report.cli import DRY_RUN_BODY, app
+from solar_report.cli import DRY_RUN_BODY, _build_source, app
+from solar_report.config import load_config
+from solar_report.sources.csv_source import CsvDataSource
 
 runner = CliRunner()
 
@@ -165,6 +167,26 @@ def test_html_format_overrides_md_suffix_in_path_template(tmp_path: Path) -> Non
     assert output_path.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
 
 
+def test_dotted_output_path_is_not_truncated_by_extension_handling(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        output_format="html",
+        output_path=str(tmp_path / "reports" / "{period}-2026.07.19"),
+    )
+
+    with (
+        patch("solar_report.cli._build_source", return_value=_fake_source()),
+        patch("solar_report.cli.AnthropicClient"),
+    ):
+        result = runner.invoke(
+            app,
+            ["generate", "--config", str(config_path), "--reference", REFERENCE, "--dry-run"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "reports" / "week-2026.07.19.html").exists()
+
+
 def test_period_option_overrides_config(tmp_path: Path) -> None:
     config_path = _write_config(tmp_path)
 
@@ -289,3 +311,33 @@ def test_no_events_path_means_no_events_read(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     read_events.assert_not_called()
+
+
+def test_build_source_passes_separator_and_decimal_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"""\
+system:
+  name: "My rooftop PV"
+  installed_kwp: 6.0
+source:
+  kind: "csv"
+  csv:
+    path: "{tmp_path / "production.csv"}"
+    separator: ";"
+    decimal: ","
+llm:
+  api_key: "${{ANTHROPIC_API_KEY}}"
+""",
+        encoding="utf-8",
+    )
+    config = load_config(config_path)
+
+    source = _build_source(config)
+
+    assert isinstance(source, CsvDataSource)
+    assert source._separator == ";"
+    assert source._decimal == ","
